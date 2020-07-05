@@ -19,8 +19,8 @@ Authentication
    db <- dbConnect(RMySQL::MySQL(), 
     dbname = "stackoverflow",
     host = "127.0.0.1",
-    user = "emuzulu",
-    password = "Zila.768")
+    user = "",
+    password = "")
 
   final_socodes <- "SELECT * FROM final_socodes"
   final_socodes <- db %>% dbGetQuery(final_socodes) %>% collect()
