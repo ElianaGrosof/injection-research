@@ -1,0 +1,58 @@
+---
+title: "SQL injections"
+author: "Evans Muzulu"
+date: "7/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Authentication
+```{r, echo=FALSE, message=FALSE}
+  library(dbplyr) 
+  library(mdsr)   
+  library(RMySQL)
+
+   db <- dbConnect(RMySQL::MySQL(), 
+    dbname = "stackoverflow",
+    host = "127.0.0.1",
+    user = "emuzulu",
+    password = "Zila.768")
+
+  final_socodes <- "SELECT * FROM final_socodes"
+  final_socodes <- db %>% dbGetQuery(final_socodes) %>% collect()
+```
+
+
+// Data reshaping and visualisations
+
+```{r, echo=FALSE, message=FALSE}
+
+questions <- final_socodes %>% filter(type=="question")
+
+answer <- final_socodes %>% filter(type=="answer")
+
+everything_else <- final_socodes %>% filter(type=="everything_else")
+
+```
+
+```{r, echo=FALSE, message=FALSE}
+
+  
+  sql_injectable_questions <- questions %>% filter(sql_injectable==1)
+
+
+
+
+
+
+
+
+
+```
+
+
+
