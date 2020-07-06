@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 databaseName = 'stackoverflow'
 hostName = '127.0.0.1'
-password = "REDACTED"
-userName = 'REDACTED'
+password = "aneasypassword" #'REDACTED'
+userName = 'eliana' #'REDACTED'
 
 
 
@@ -68,7 +68,6 @@ How many people who post SQL code which includes user input and at least one SQL
     
     
     q1 <-rbind(question_percent, answer_percent, everything_else_percent)
-    
 
     write.csv(q1, "Question1.csv")
 
@@ -81,8 +80,37 @@ How many people who post SQL code which includes user input and at least one SQL
   
 
 ```
+Of the questions that sql-injectable, how many have sql-injectable answers?
+```{r, echo=FALSE, message=FALSE}
+### queries
+query_zero <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.relevant=1 AND x.type='question' AND x.sql_injectable=1 AND y.type='answer' AND y.sql_injectable="
+query_one <- paste(query_zero,"1")
 
+si_zero <- db %>% dbGetQuery(paste(query_zero,"0")) %>% collect()
+si_one <- db %>% dbGetQuery(query_one) %>% collect()
 
+q2 <- cbind(c('Non SQL-injectable answer', 'SQL-injectable answer'),rbind(si_zero, si_one))
+#rename columns
+names(q2)[1] <- 'label'
+names(q2)[2] <- 'count'
+write.csv(q2, "Question2.csv")
+```
+
+```{r}
+### Makes a pie chart of the data in R. #######
+si_zero <- as.numeric(as.character(si_zero))
+si_one <- as.numeric(as.character(si_one))
+
+slices <- c(si_zero, si_one)
+labels <- c('SQL-injectable', 'Non SQL-injectable')
+percent <- round(slices/sum(slices)*100)
+labels <- paste(labels, paste(percent,'%', sep=""))
+pie(slices, labels=labels, col = c('red', 'blue'), main='Questions with SQL-injectable code that have SQL-injectable answers')
+
+#library(waffle)
+#waffle(
+#  c('SQL-injectable answer'= si_one, 'Non-SQL-injectable answer'= si_zero), rows=7)
+```
 Of these people, how many think their code is secure?
 
 ```{r, echo =FALSE, message=FALSE}
@@ -92,9 +120,7 @@ Of these people, how many think their code is secure?
   assumes_security <- function(dataset){
     dataset <- dataset %>% mutate(security = max(real_escape, bounded_user_input, prepared))
     return(dataset)
-    
   }
-
 
   assumes_security(final_socodes)
 
