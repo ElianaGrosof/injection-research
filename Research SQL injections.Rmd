@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 databaseName = 'stackoverflow'
 hostName = '127.0.0.1'
-password = 'REDACTED'
-userName = 'REDACTED'
+password = 'aneasypassword' #'REDACTED'
+userName = 'eliana' #'REDACTED'
 
 
 
@@ -111,6 +111,17 @@ pie(slices, labels=labels, col = c('red', 'blue'), main='Questions with SQL-inje
 #waffle(
 #  c('SQL-injectable answer'= si_one, 'Non-SQL-injectable answer'= si_zero), rows=7)
 ```
+
+Comparison of questions 1-5 in this document: https://docs.google.com/document/d/11deLxXumfRyBlbk5nSV_ili5mYtZ3y3Of1nxwhDlt_U/edit
+Just for the question.
+```{r, echo=FALSE, message=FALSE}
+query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared FROM final_socodes WHERE type='question';"
+query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
+
+library(UpSetR);
+upset(query_upset)
+```
+
 Of these people, how many think their code is secure?
 
 ```{r, echo =FALSE, message=FALSE}
