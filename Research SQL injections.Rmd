@@ -9,12 +9,23 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r, echo=FALSE, include=FALSE, message=FALSE}
 
+databaseName = 'stackoverflow'
+hostName = '127.0.0.1'
+password = "REDACTED"
+userName = 'REDACTED'
+
+
+
+```
 Authentication
 ```{r, echo=FALSE, message=FALSE}
   library(dbplyr) 
   library(mdsr)   
   library(RMySQL)
+  library(ggthemes)
+  library(ggplot2)
 
    db <- dbConnect(RMySQL::MySQL(), 
     dbname = databaseName,
@@ -25,28 +36,135 @@ Authentication
   query <- "SELECT * FROM final_socodes"
   final_socodes <- db %>% dbGetQuery(query) %>% collect()
 ```
-
-
 // Querying the different types of data we have
 ```{r, echo=FALSE, message=FALSE}
 
 questions <- final_socodes %>% filter(type=="question")
 
-answer <- final_socodes %>% filter(type=="answer")
+answers <- final_socodes %>% filter(type=="answer")
 
 everything_else <- final_socodes %>% filter(type=="everything_else")
 
 ```
 
 
-The questions we wanted to answer are
+Questions we can and should answer, now that we’ve been over that:
+How many people who post SQL code which includes user input and at least one SQL query (a relevant question) post SQL injectable code?
+
+```{r}
+
+  final_socodes <- final_socodes %>% mutate(sql_injectable = as.character(sql_injectable))
+  
+    sql_percent <-function(dataset){
+        dataset <- dataset %>% mutate(sql_injectable = as.character(sql_injectable))
+        dataset <- dataset %>% filter(relevant==1) %>% group_by(type, sql_injectable) %>% summarize(count=n())
+        dataset <- dataset %>% mutate(percent = count/sum(count)*100)
+        return(dataset)
+    }
+    
+    question_percent <- sql_percent(questions)
+    answer_percent <- sql_percent(answers)
+    everything_else_percent <- sql_percent(everything_else)
+    
+    
+    q1 <-rbind(question_percent, answer_percent, everything_else_percent)
+    
+
+    write.csv(q1, "Question1.csv")
+
+  q1_picture <-q1 %>% ggplot( aes(x=type, y=count, fill=sql_injectable)) + geom_col()  + xlab("Type") + ylab("Number of items")+ coord_flip()
+  
+  
+  #I am supposed to have percentages here
+  
+  q1_picture
+  
+
+```
+
+
+Of these people, how many think their code is secure?
+
+```{r, echo =FALSE, message=FALSE}
+
+# We are defining thinking that your code is secure as having at least one of these things: real_escape, bounded_user_input, prepared_statements
+
+  assumes_security <- function(dataset){
+    dataset <- dataset %>% mutate(security = max(real_escape, bounded_user_input, prepared))
+    return(dataset)
+    
+  }
+
+
+  assumes_security(final_socodes)
+
+
+
+
+
+```
+
+
+
+
+Of these people, how many are explicitly looking for security advice?
+Does this change the quality of the answer? Do you get good security advice on StackOverflow only when you ask for it?
+Of these people, how many answers and everything_elses offer security advice?
+How many offer good security advice? (as determined by the level of specificity denoted above)
+How many answers/comments offering security advice overtly say what they’re offering and why, and how many just include it in their overall answer to the question? (e.g. posting a code snippet that is not SQL-injectable, but not pointing that out)
+How many people who post SQL code including user input and at least one SQL query post non-SQL injectable code?
+Of these people, how many think their code is secure?
+Of these people, how many are explicitly looking for security advice?
+Of these people, how many answers and everything_elses offer SQL injectable code revisions?
+
+```{r, echo=FALSE, message=FALSE}
+  
+
+  final_socodes %>% filter(sql_injectable==1) %>% group_by(type) %>% summarize()
+  
+  
+
+
+
+
+
+
+
+
+
+```
+
+
+
 ```{r, echo=FALSE, message=FALSE}
 
+
+# initial scripts I am probably not gonna use these anymore
+
+
+ pages <- final_socodes %>% summarise(num_pages = n())
+  number_of_pages <- pages[1, 1]
+ relevant = final_socodes %>% filter(relevant==1) %>% summarize(relevant_pages = n())
+  relevant
+ num_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==1) %>% summarize(sqli_questions = n())
+  num_sqli_questions
+   num_sqli_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==1) %>% summarize(sqli_answers = n())
+  num_sqli_answers
+  num_sqli_answers <- final_socodes %>% filter(type=="everything_else" & sql_injectable==1) %>% summarize(sqli_everything = n())
+  num_sqli_answers
+  non_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==0) %>% summarize(non_sqli_questions = n())
+  non_sqli_questions
+  non_sqli_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0) %>% summarize(non_sqli_answers = n())
+  non_sqli_answers
+  non_sqli_everything <- final_socodes %>% filter(type=="everything_else" & sql_injectable==0) %>% summarize(non_sqli_everything_else = n())
+  non_sqli_everything
   
-  sql_injectable_questions <- questions %>% filter(sql_injectable==1)
+sql_injectable_question <- final_socodes %>% filter(type == "question" & sql_injectable=1)
+non_sql_injectable_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0)
+corrected_questions <- sql_injectable_question %>% inner_join(non_sql_injectable_answers, by="id")
 
 
-
+//Then you Count using the summarize function
 
 
 
