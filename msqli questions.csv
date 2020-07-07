@@ -1,0 +1,8 @@
+﻿questions that mention sqli,context: where and what,answers & comments
+29007436,Comment within code snippet: uses real_escape() to prevent SQL injection,No relevant security advice in any answer or any comment.
+29024361,Comment within code snippet: uses real_escape() to prevent SQL injection,No relevant security advice in any answer or any comment.
+4587339,Comment within code: uses real_escape() to prevent SQL injection,No relevant security advice in any answer or any comment.
+16019976,Comment within code: uses real_escape() to prevent SQL injection,No relevant security advice in any answer or any comment.
+9476097,Question text: asks audience to ignore injection issue and focus on question at hand,No relevant security advice in any answer or any comment.
+8267614,Question text: asks for security advice on their use of real_escape(),"Relevant security advice in the answer. Does not remedy SQL injection issue, but answers the question posed."
+21971127,Question update: urges readers not to use original code because of newly recognized injection issue,No relevant security advice in any answer or any comment.
