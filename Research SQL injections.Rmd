@@ -163,9 +163,19 @@ Of these people, how many think their code is secure?
 security_codes <-security_codes %>% mutate(percent_re = use_re/total*100, percent_bui = use_bui/total*100, percent_prepared = use_prepared/total*100)
 
 
-bui <-security_codes %>% ggplot(aes(x= type, y= percent_bui))+ geom_col() 
+bui <-security_codes %>% ggplot(aes(x= type, y= percent_bui))+ geom_col()  + theme_classic()
 
 bui
+
+re <- security_codes %>% ggplot(aes(x= type, y=percent_re)) + geom_col() + theme_classic()
+
+re
+
+
+prep <- security_codes %>% ggplot(aes(x=type, y=percent_prepared)) + geom_col() + theme_classic()
+
+
+prep
   
 
 
