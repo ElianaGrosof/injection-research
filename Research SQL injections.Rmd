@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 databaseName = 'stackoverflow'
 hostName = '127.0.0.1'
-password = 'aneasypassword' #'REDACTED'
-userName = 'eliana' #'REDACTED'
+password = 'REDACTED'
+userName = 'REDACTED'
 
 
 
@@ -113,13 +113,42 @@ pie(slices, labels=labels, col = c('red', 'blue'), main='Questions with SQL-inje
 ```
 
 Comparison of questions 1-5 in this document: https://docs.google.com/document/d/11deLxXumfRyBlbk5nSV_ili5mYtZ3y3Of1nxwhDlt_U/edit
-Just for the question.
+(Just for the question)
+UpSetR documentation: https://rdrr.io/cran/UpSetR/man/upset.html 
 ```{r, echo=FALSE, message=FALSE}
 query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared FROM final_socodes WHERE type='question';"
 query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
 
 library(UpSetR);
-upset(query_upset)
+upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1")
+#shows empty intersections, too
+#upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", empty.intersections = "on") 
+```
+How often do people mention that code is open to sql injection?
+```{r, echo=FALSE, message=FALSE}
+ms_table <- final_socodes %>% filter(relevant=="1")
+ms_table <- subset(ms_table, select=c("type", "mentions_sqli"))
+
+    ms_percent <-function(dataset){
+        dataset <- dataset %>% mutate(mention_sqli = as.character(mentions_sqli))
+        dataset <- dataset %>% filter(relevant==1) %>% group_by(type, mentions_sqli) %>% summarize(count=n())
+        dataset <- dataset %>% mutate(percent = count/sum(count)*100)
+        return(dataset)
+    }
+    
+    q_percent <- ms_percent(questions)
+    a_percent <- ms_percent(answers)
+    ee_percent <- ms_percent(everything_else)
+    
+    
+    ms_table <-rbind(q_percent, a_percent, ee_percent)
+
+    ms_plot <- ms_table %>% ggplot( aes(x=type, y=count, fill=mentions_sqli)) + geom_bar(position="stack", stat="identity") + xlab("Type") + ylab("Number of items")
+    ms_plot + theme_classic() + theme(legend.position = "none")
+    
+    #will make it nicer later
+
+
 ```
 
 Of these people, how many think their code is secure?
