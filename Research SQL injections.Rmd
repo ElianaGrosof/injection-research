@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 databaseName = 'stackoverflow'
 hostName = '127.0.0.1'
-password = 'REDACTED'
-userName = 'REDACTED'
+password = 'aneasypassword'#'REDACTED'
+userName = 'eliana' #'REDACTED'
 
 
 
@@ -120,7 +120,7 @@ query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared
 query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
 
 library(UpSetR);
-upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1")
+upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", group.by = 'sets')
 #shows empty intersections, too
 #upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", empty.intersections = "on") 
 ```
