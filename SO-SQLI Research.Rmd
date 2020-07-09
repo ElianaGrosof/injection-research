@@ -1,0 +1,401 @@
+---
+title: "SQL Injections, or StackOverflow Users: Who are they? What do they know about SQL injection? Do they know things? Let's find out."
+authors: "Evans Muzulu, Eliana Grosof, Sam Fertig"
+date: "7/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Clear db connections (in case it's maxed out). Uncomment last line to clear environment.
+```{r}
+all_cons <- dbListConnections(MySQL())
+for(con in all_cons)
+  dbDisconnect(con)
+rm(list=ls())
+```
+
+Authentication
+```{r, echo=FALSE, include=FALSE, message=FALSE}
+
+library(dbplyr) 
+library(mdsr)   
+library(RMySQL)
+library(ggthemes)
+library(ggplot2)
+
+db <- dbConnect(RMySQL::MySQL(), 
+                dbname = "stackoverflow",
+                host = "127.0.0.1",
+                user = "samfert",
+                password = "^Am,a>kie&7")
+
+final_socodes <- tbl(db,"final_socodes")
+
+```
+
+Querying the different types of data we have
+```{r, echo=FALSE, message=FALSE}
+
+questions <- final_socodes %>% filter(type=="question")
+
+answers <- final_socodes %>% filter(type=="answer")
+
+everything_else <- final_socodes %>% filter(type=="everything_else")
+
+```
+
+Initial scripts
+```{r, echo=FALSE, message=FALSE}
+
+# Initial scripts
+
+ pages <- final_socodes %>% summarise(num_pages = n())
+  number_of_pages <- pages[1, 1]
+ relevant = final_socodes %>% filter(relevant==1) %>% summarize(relevant_pages = n())
+  relevant
+ num_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==1) %>% summarize(sqli_questions = n())
+  num_sqli_questions
+   num_sqli_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==1) %>% summarize(sqli_answers = n())
+  num_sqli_answers
+  num_sqli_answers <- final_socodes %>% filter(type=="everything_else" & sql_injectable==1) %>% summarize(sqli_everything = n())
+  num_sqli_answers
+  non_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==0) %>% summarize(non_sqli_questions = n())
+  non_sqli_questions
+  non_sqli_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0) %>% summarize(non_sqli_answers = n())
+  non_sqli_answers
+  non_sqli_everything <- final_socodes %>% filter(type=="everything_else" & sql_injectable==0) %>% summarize(non_sqli_everything_else = n())
+  non_sqli_everything
+  
+sql_injectable_question <- final_socodes %>% filter(type == "question" & sql_injectable=1)
+non_sql_injectable_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0)
+corrected_questions <- sql_injectable_question %>% inner_join(non_sql_injectable_answers, by="id")
+
+# Then you Count using the summarize function
+
+```
+
+Question time!
+
+How many people who post SQL code--which includes user input and at least one SQL query (a relevant question)--post SQL injectable code?
+```{r}
+
+  final_socodes <- final_socodes %>% mutate(sql_injectable = as.character(sql_injectable))
+  
+    sql_percent <- function(dataset){
+        dataset <- dataset %>% mutate(sql_injectable = as.character(sql_injectable))
+        dataset <- dataset %>% filter(relevant==1) %>% group_by(type, sql_injectable) %>% summarize(count=n())
+        dataset <- dataset %>% mutate(percent = count/sum(count)*100)
+        return(dataset)
+    }
+    
+    question_percent <- sql_percent(questions)
+    answer_percent <- sql_percent(answers)
+    everything_else_percent <- sql_percent(everything_else)
+    
+    
+    q1 <-rbind(question_percent, answer_percent, everything_else_percent)
+
+    write.csv(q1, "Question1.csv")
+
+  q1_picture <-q1 %>% ggplot( aes(x=type, y=count, fill=sql_injectable)) + geom_col()  + xlab("Type") + ylab("Number of items")+ coord_flip()
+  
+  
+  #I am supposed to have percentages here
+  
+  q1_picture
+  
+```
+
+Of all SQL-injectable questions, how many have SQL-injectable answers?
+```{r, echo=FALSE, message=FALSE}
+### queries
+query_zero <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.relevant=1 AND x.type='question' AND x.sql_injectable=1 AND y.type='answer' AND y.sql_injectable="
+query_one <- paste(query_zero,"1")
+
+si_zero <- db %>% dbGetQuery(paste(query_zero,"0")) %>% collect()
+si_one <- db %>% dbGetQuery(query_one) %>% collect()
+
+q2 <- cbind(c('Non SQL-injectable answer', 'SQL-injectable answer'),rbind(si_zero, si_one))
+#rename columns
+names(q2)[1] <- 'label'
+names(q2)[2] <- 'count'
+write.csv(q2, "Question2.csv")
+```
+
+```{r}
+### Makes a pie chart of the data in R. #######
+si_zero <- as.numeric(as.character(si_zero))
+si_one <- as.numeric(as.character(si_one))
+
+slices <- c(si_zero, si_one)
+labels <- c('Non SQL-injectable', 'SQL-injectable')
+percent <- round(slices/sum(slices)*100)
+labels <- paste(labels, paste(percent,'%', sep=""))
+pie(slices, labels=labels, col = c('green', 'red'), main='Answers to SQL-injectable Questions')
+
+```
+
+Comparison of questions 1-5 in this document: https://docs.google.com/document/d/11deLxXumfRyBlbk5nSV_ili5mYtZ3y3Of1nxwhDlt_U/edit
+(Just for the question)
+UpSetR documentation: https://rdrr.io/cran/UpSetR/man/upset.html 
+BULK SECURITY CLASSIFICATION for SQL-INJECTABLE QUESTIONS
+```{r, echo=FALSE, message=FALSE}
+query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared FROM final_socodes WHERE type='question';"
+query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
+
+library(UpSetR);
+upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", group.by = 'sets')
+
+# To show empty intersections, too:
+#upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", empty.intersections = "on") 
+
+```
+
+BULK SECURITY CLASSIFICATION for SQL-INJECTABLE ANSWERS
+```{r, echo=FALSE, message=FALSE}
+query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared FROM final_socodes WHERE type='answer';"
+query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
+
+library(UpSetR);
+upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", group.by = 'sets')
+
+# To show empty intersections, too:
+#upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", empty.intersections = "on") 
+
+```
+
+BULK SECURITY CLASSIFICATION for SQL-INJECTABLE EVERYTHING_ELSEs
+```{r, echo=FALSE, message=FALSE}
+query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared FROM final_socodes WHERE type='everything_else';"
+query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
+
+library(UpSetR);
+upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", group.by = 'sets')
+
+# To show empty intersections, too:
+#upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color = "#995ee1", empty.intersections = "on") 
+
+```
+
+How often do people mention SQL injection?
+```{r, echo=FALSE, message=FALSE}
+ms_table <- final_socodes %>% filter(relevant=="1")
+ms_table <- subset(ms_table, select=c("type", "mentions_sqli"))
+
+    ms_percent <-function(dataset){
+        dataset <- dataset %>% mutate(mention_sqli = as.character(mentions_sqli))
+        dataset <- dataset %>% filter(relevant==1) %>% group_by(type, mentions_sqli) %>% summarize(count=n())
+        dataset <- dataset %>% mutate(percent = count/sum(count)*100)
+        return(dataset)
+    }
+    
+    q_percent <- ms_percent(questions)
+    a_percent <- ms_percent(answers)
+    ee_percent <- ms_percent(everything_else)
+    
+    
+    ms_table <-rbind(q_percent, a_percent, ee_percent)
+
+    ms_plot <- ms_table %>% ggplot( aes(x=type, y=count, fill=mentions_sqli)) + geom_bar(position="stack", stat="identity") + xlab("Type") + ylab("Number of items")
+    ms_plot + theme_classic() + theme(legend.position = "none")
+    
+    #will make it nicer later
+
+```
+
+How many think their code is secure?
+```{r, echo =FALSE, message=FALSE}
+
+# We are defining thinking that your code is secure as having at least one of these things: real_escape, bounded_user_input, prepared_statements
+
+  
+  security_codes <- final_socodes %>% filter(relevant == 1) %>% group_by(type) %>% summarise( use_re = sum(real_escape), use_bui= sum(bounded_user_input), use_prepared = sum(prepared), total=n())
+
+security_codes <-security_codes %>% mutate(percent_re = use_re/total*100, percent_bui = use_bui/total*100, percent_prepared = use_prepared/total*100)
+
+
+bui <-security_codes %>% ggplot(aes(x= type, y= percent_bui))+ geom_col()  + theme_classic()
+
+bui
+
+re <- security_codes %>% ggplot(aes(x= type, y=percent_re)) + geom_col() + theme_classic()
+
+re
+
+
+prep <- security_codes %>% ggplot(aes(x=type, y=percent_prepared)) + geom_col() + theme_classic()
+
+
+prep
+
+```
+
+# Of people who post SQL injectable questions, how many think their code is secure? 
+# Side Q: is this a good measure of false security?
+```{r}
+num_false_security <- final_socodes %>% filter(sql_injectable==1 & type=='question' & (real_escape==1 || bounded_user_input==1)) %>% summarize(num_false_security = n())
+  num_false_security
+```
+
+# Of these people, how many are explicitly looking for security advice?
+```{r}
+sec_seekers <- final_socodes %>% filter(sql_injectable==1 & type=='question' & mentions_sqli==1)
+  sec_seekers
+```
+# Take a gander at each id.
+# 29007436 --> mentions_sqli in code comment about how they use real_escape() to stop SQL_injection
+# 29024361 --> mentions_sqli in code comment about how they use real_escape() (and other bui) to stop SQL_injection
+# 9476097  --> asks audience to ignore SQL_injection issue, just wants advice on how to get their code to run
+# 4587339  --> mentions_sqli in code comment about how they use real_escape() (and other bui) to stop SQL_injection
+# 21971127 --> posted in an update to not use their code because they now realize it is vulnerable to SQL_injection
+# 16019976 --> mentions_sqli in code comment about how they use real_escape() to stop SQL_injection
+# 8267614  --> explicitly asks how to stop SQL injections even though they're using real_escape() and other bui
+
+# Does this change the quality of the answer? Do you get good security advice on StackOverflow only when you ask for it?
+```{r}
+sec_seekers_answers <- final_socodes %>% filter(type=='answer' & (id==29007436 || id==29024361 || id==9476097 || id==4587339 || id==21971127 || id==16019976 || id==8267614))
+  sec_seekers_answers
+```
+# Only 5 of those questions have answer. Let's take a gander.
+# 29007436 --> No relevant security advice in the answer or in any comments.
+# 29024361 --> No relevant security advice in the answer or in any comments. 
+# 21971127 --> No relevant security advice in the answer or in any comments.
+# 9476097  --> No relevant security advice in the answer or in any comments.
+# 8267614  --> Relevant security advice in the answer. Doesn't suggest using prepared statements, but answers the question posed pretty thoroughly.
+Above information (manually) summarized in .csv file in GitHub repo.
+
+Of all SQL injectable questions, how many answers offer security advice?
+Define: An answer counts as offering security advice if it raises the security level of the original code. Consult Security Questions doc for levels.
+```{r, echo=FALSE, message=FALSE}
+
+# Get base amounts for each query (to know percentages).
+answerquery0base <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=0 AND x.bounded_user_input=0"
+answerquery1base <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=0 AND x.bounded_user_input=1"
+answerquery2base <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=1"
+answerquery3base <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=1"
+
+# Get answers
+
+# Injectable questions that had ZERO sanitation--neither prepared, real_escape() nor bui--and were then recommended to use either prepared, real_escape() or bui.
+answerquery0 <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=0 AND x.bounded_user_input=0 AND y.type='answer' AND (y.prepared=1 OR y.real_escape=1 OR y.bounded_user_input=1)"
+
+# Injectable questions that had bui--but neither prepared nor real_escape()--and were then recommended to use prepared or real_escape().
+answerquery1 <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=0 AND x.bounded_user_input=1 AND y.type='answer' AND (y.prepared=1 OR y.real_escape=1)"
+
+# Injectable questions that had real_escape()--but not prepared--and were then recommended to use prepared.
+answerquery2 <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=1 AND y.type='answer' AND y.prepared=1"
+
+# Injectable questions that used prepared statements incorrectly and were then recommended to use prepared statements correctly. 
+answerquery3 <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=1 AND y.type='answer' AND y.prepared=1 AND y.sql_injectable=0"
+
+answersec0_base <- db %>% dbGetQuery(answerquery0base) %>% collect()
+answersec1_base <- db %>% dbGetQuery(answerquery1base) %>% collect()
+answersec2_base <- db %>% dbGetQuery(answerquery2base) %>% collect()
+answersec3_base <- db %>% dbGetQuery(answerquery3base) %>% collect()
+
+answersec0_answers <- db %>% dbGetQuery(answerquery0) %>% collect()
+answersec1_answers <- db %>% dbGetQuery(answerquery1) %>% collect()
+answersec2_answers <- db %>% dbGetQuery(answerquery2) %>% collect()
+answersec3_answers <- db %>% dbGetQuery(answerquery3) %>% collect()
+
+answersec0_percent <- format(round(answersec0_answers/answersec0_base*100, 2), nsmall = 2) %>% collect()
+answersec1_percent <- format(round(answersec1_answers/answersec1_base*100, 2), nsmall = 2) %>% collect()
+answersec2_percent <- format(round(answersec2_answers/answersec2_base*100, 2), nsmall = 2) %>% collect()
+answersec3_percent <- format(round(answersec3_answers/answersec3_base*100, 2), nsmall = 2) %>% collect()
+
+answersec0_percent
+answersec1_percent
+answersec2_percent
+answersec3_percent
+
+security_level<-c(0,1,2,3)
+answersec_percs=c(7.07,0.86,1.28,0.00)
+df<-data.frame(security_level, answersec_percs)
+head(df)
+blarg <- df %>% ggplot(aes(x=security_level, y=answersec_percs)) + geom_col(fill = "#FFDB6D", color = "#C4961A") + theme_classic()
+print(blarg + labs(y="% of Questions with an Answer Offering Security Advice", x="Questions' Security Level", title="Security Advice Received in Answer by Security Level"))
+
+```
+
+Of all SQL injectable questions, how many everything_elses offer security advice?
+Define: An everything_else counts as offering security advice if it raises the security level of the original code. Consult Security Questions doc for levels.
+```{r, echo=FALSE, message=FALSE}
+
+# Get base amounts for each query (to know percentages).
+commentquery0base <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=0 AND x.bounded_user_input=0"
+commentquery1base <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=0 AND x.bounded_user_input=1"
+commentquery2base <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=1"
+commentquery3base <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=1"
+
+# Get everything_elses
+
+# Injectable questions that had ZERO sanitation--neither prepared, real_escape() nor bui--and were then recommended to use either prepared, real_escape() or bui.
+commentquery0 <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=0 AND x.bounded_user_input=0 AND y.type='everything_else' AND (y.prepared=1 OR y.real_escape=1 OR y.bounded_user_input=1)"
+
+# Injectable questions that had bui--but neither prepared nor real_escape()--and were then recommended to use prepared or real_escape().
+commentquery1 <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=0 AND x.bounded_user_input=1 AND y.type='everything_else' AND (y.prepared=1 OR y.real_escape=1)"
+
+# Injectable questions that had real_escape()--but not prepared--and were then recommended to use prepared.
+commentquery2 <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=0 AND x.real_escape=1 AND y.type='everything_else' AND y.prepared=1"
+
+# Injectable questions that used prepared statements incorrectly and were then recommended to use prepared statements correctly. 
+commentquery3 <- "SELECT COUNT(x.id) FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=1 AND x.prepared=1 AND y.type='everything_else' AND y.prepared=1 AND y.sql_injectable=0"
+
+commentsec0_base <- db %>% dbGetQuery(commentquery0base) %>% collect()
+commentsec1_base <- db %>% dbGetQuery(commentquery1base) %>% collect()
+commentsec2_base <- db %>% dbGetQuery(commentquery2base) %>% collect()
+commentsec3_base <- db %>% dbGetQuery(commentquery3base) %>% collect()
+
+commentsec0_answers <- db %>% dbGetQuery(commentquery0) %>% collect()
+commentsec1_answers <- db %>% dbGetQuery(commentquery1) %>% collect()
+commentsec2_answers <- db %>% dbGetQuery(commentquery2) %>% collect()
+commentsec3_answers <- db %>% dbGetQuery(commentquery3) %>% collect()
+
+commentsec0_percent <- format(round(commentsec0_answers/commentsec0_base*100, 2), nsmall = 2) %>% collect()
+commentsec1_percent <- format(round(commentsec1_answers/commentsec1_base*100, 2), nsmall = 2) %>% collect()
+commentsec2_percent <- format(round(commentsec2_answers/commentsec2_base*100, 2), nsmall = 2) %>% collect()
+commentsec3_percent <- format(round(commentsec3_answers/commentsec3_base*100, 2), nsmall = 2) %>% collect()
+
+commentsec0_percent
+commentsec1_percent
+commentsec2_percent
+commentsec3_percent
+
+security_level<-c(0,1,2,3)
+commentsec_percs<-c(4.04,6.03,0.00,0.00)
+df<-data.frame(security_level, commentsec_percs)
+head(df)
+blarg <- df %>% ggplot(aes(x=security_level, y=commentsec_percs)) + geom_col(fill = "#FFDB6D", color = "#C4961A") + theme_classic()
+print(blarg + labs(y="% of Questions with an Everything Else Offering Security Advice", x="Questions' Security Level", title="Security Advice Received in Everything Else (by Security Level)"))
+
+```
+
+Answers (at least insight) to the following questions can all be found above:
+
+  1. How many people who post SQL code which includes user input and at least one SQL query (a            relevant question) post SQL injectable code?
+  
+  2. Of these people, how many think their code is secure?
+  
+  3. Of these people, how many are explicitly looking for security advice?
+  
+  4. Does this change the quality of the answer? Do you get good security advice on StackOverflow         only when you ask for it?
+  
+  5. Of these people, how many answers and everything_elses offer security advice?
+  
+  6. How many offer good security advice? (as determined by the level of specificity denoted            above)
+  
+  7. How many answers/comments offering security advice clearly state what they’re suggesting and         why. How many just include it in their overall answer to the question? (e.g. posting a            code snippet that is not SQL-injectable, but not explicitly pointing that benefit out)
+
+
+Still needing answers:
+
+  8. How many people who post SQL code including user input and at least one SQL query post             non-SQL injectable code?
+
+  9. Of these people, how many think their code is secure?
+
+  10. Of these people, how many are explicitly looking for security advice?
+
+  11. Of these people, how many answers and everything_elses offer suggestions that render the            original code SQL injectable?
