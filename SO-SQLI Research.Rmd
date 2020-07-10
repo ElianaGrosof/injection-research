@@ -27,10 +27,10 @@ library(ggthemes)
 library(ggplot2)
 
 db <- dbConnect(RMySQL::MySQL(), 
-                dbname = "REDACTED",
-                host = "REDACTED",
-                user = "REDACTED",
-                password = "REDACTED")
+                dbname = "stackoverflow",
+                host = "127.0.0.1",
+                user = "samfert",
+                password = "^Am,a>kie&7")
 
 final_socodes <- tbl(db,"final_socodes")
 
@@ -399,3 +399,29 @@ Still needing answers:
   10. Of these people, how many are explicitly looking for security advice?
 
   11. Of these people, how many answers and everything_elses offer suggestions that render the            original code SQL injectable?
+  
+  
+How many people who post SQL code including user input and at least one SQL query post             non-SQL injectable code?
+```{r}
+non_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==0) %>% summarize(non_sqli_questions = n())
+non_sqli_questions
+```
+
+Of these people, how many think their code is secure?
+Of these people, how many are explicitly looking for security advice?
+```{r}
+secure_and_rightly_so <- final_socodes %>% filter(type=="question" & sql_injectable==0 & mentions_sqli==1) %>% summarize(non_sqli_questions = n())
+secure_and_rightly_so
+```
+# Presumably, because there are no non SQL-injectable questions that mention injectability, none of these people are asking for security advice. Perhaps this means that all of them know their code is secure.
+
+Of these people, how many answers and everything_elses offer suggestions that render the            original code SQL injectable?
+```{r}
+
+query_for_stupid <- "SELECT x.id FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=0 AND ( (y.type='answer' OR y.type='everything_else') AND y.sql_injectable=1)"
+
+idiot_suggestions <- db %>% dbGetQuery(query_for_stupid) %>% collect()
+idiot_suggestions
+
+```
+# Takeaway: there is not a single non SQL injectable question with a SQL injectable answer or comment.
