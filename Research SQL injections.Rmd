@@ -226,3 +226,29 @@ final_socodes %>% filter(relevant==1 & type=='question') %>% group_by(sql_inject
 
 ```
 
+
+
+
+```{r}
+prepared_false_security <- final_socodes %>% filter( type=='question') %>% filter(real_escape==1 | bounded_user_input==1 | prepared==1) %>% group_by(sql_injectable) %>% summarize(count = n())
+
+
+prepared_false_security <- prepared_false_security %>% mutate(percent = count/sum(count) *100)
+
+prepared_false_security %>% ggplot(aes(x = sql_injectable, y=percent, fill=sql_injectable)) + geom_col() + scale_fill_brewer(palette="Set3")
+
+```
+
+```{r, echo=FALSE, message=FALSE}
+non_prepared_false_security <- final_socodes %>% filter( type=='question') %>% filter(real_escape==1 | bounded_user_input==1) %>% group_by(sql_injectable) %>% summarize(count = n())
+
+
+non_prepared_false_security <- non_prepared_false_security %>% mutate(percent = count/sum(count) *100)
+
+non_prepared_false_security %>% ggplot(aes(x = sql_injectable, y=percent, fill=sql_injectable)) + geom_col() + scale_fill_brewer(palette="Set3")
+
+
+
+
+```
+
