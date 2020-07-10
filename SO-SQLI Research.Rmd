@@ -27,8 +27,8 @@ library(ggthemes)
 library(ggplot2)
 
 db <- dbConnect(RMySQL::MySQL(), 
-                dbname = "REDACTED",
-                host = "REDACTED",
+                dbname = "stackoverflow",
+                host = "127.0.0.1",
                 user = "REDACTED",
                 password = "REDACTED")
 
@@ -69,7 +69,7 @@ Initial scripts
   non_sqli_everything <- final_socodes %>% filter(type=="everything_else" & sql_injectable==0) %>% summarize(non_sqli_everything_else = n())
   non_sqli_everything
   
-sql_injectable_question <- final_socodes %>% filter(type == "question" & sql_injectable=1)
+sql_injectable_question <- final_socodes %>% filter(type == "question" & sql_injectable==1)
 non_sql_injectable_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0)
 corrected_questions <- sql_injectable_question %>% inner_join(non_sql_injectable_answers, by="id")
 

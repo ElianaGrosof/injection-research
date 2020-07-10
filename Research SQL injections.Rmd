@@ -1,6 +1,6 @@
 ---
 title: "SQL injections"
-author: "Evans Muzulu"
+author: "Cynthia Taylor, Eliana Grosof, Sam Fertig, Evans Muzulu"
 date: "7/2/2020"
 output: html_document
 ---
@@ -13,10 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 databaseName = 'stackoverflow'
 hostName = '127.0.0.1'
-password = 'REDACTED'
-userName = 'REDACTED'
-
-
+password = 'Zila.768'
+userName = 'emuzulu'
 
 ```
 Authentication
@@ -102,7 +100,7 @@ si_zero <- as.numeric(as.character(si_zero))
 si_one <- as.numeric(as.character(si_one))
 
 slices <- c(si_zero, si_one)
-labels <- c('SQL-injectable', 'Non SQL-injectable')
+labels <- c('Non SQL-injectable', 'SQL-injectable')
 percent <- round(slices/sum(slices)*100)
 labels <- paste(labels, paste(percent,'%', sep=""))
 pie(slices, labels=labels, col = c('red', 'blue'), main='Questions with SQL-injectable code that have SQL-injectable answers')
@@ -163,20 +161,13 @@ Of these people, how many think their code is secure?
 security_codes <-security_codes %>% mutate(percent_re = use_re/total*100, percent_bui = use_bui/total*100, percent_prepared = use_prepared/total*100)
 
 
-bui <-security_codes %>% ggplot(aes(x= type, y= percent_bui))+ geom_col()  + theme_classic()
-
-bui
-
-re <- security_codes %>% ggplot(aes(x= type, y=percent_re)) + geom_col() + theme_classic()
-
-re
+haha <- final_socodes %>% filter(relevant==1) %>% arrange() %>% ggplot(aes(x=type, fill=type)) + geom_bar() +
+  scale_fill_brewer(palette = "Set3")
+haha
 
 
-prep <- security_codes %>% ggplot(aes(x=type, y=percent_prepared)) + geom_col() + theme_classic()
 
 
-prep
-  
 
 
 
@@ -184,26 +175,49 @@ prep
 
 
 
-
+How many people who post SQL code which includes user input and at least one SQL query (a relevant question) post SQL injectable code?
+Of these people, how many think their code is secure?
 Of these people, how many are explicitly looking for security advice?
 Does this change the quality of the answer? Do you get good security advice on StackOverflow only when you ask for it?
 Of these people, how many answers and everything_elses offer security advice?
 How many offer good security advice? (as determined by the level of specificity denoted above)
-How many answers/comments offering security advice overtly say what they’re offering and why, and how many just include it in their overall answer to the question? (e.g. posting a code snippet that is not SQL-injectable, but not pointing that out)
+How many answers/comments offering security advice clearly state what they’re suggesting and why. How many just include it in their overall answer to the question? (e.g. posting a code snippet that is not SQL-injectable, but not explicitly pointing that benefit out)
 How many people who post SQL code including user input and at least one SQL query post non-SQL injectable code?
 Of these people, how many think their code is secure?
 Of these people, how many are explicitly looking for security advice?
-Of these people, how many answers and everything_elses offer SQL injectable code revisions?
+Of these people, how many answers and everything_elses offer suggestions that render the original code SQL injectable?
+
+
 
 ```{r, echo=FALSE, message=FALSE}
+
+#How many people who post SQL code which includes user input and at least one SQL query (a relevant question) post SQL injectable code?
+
+    
+  summary <- final_socodes %>% filter(relevant==1 & type=='question')  %>%  group_by(sql_injectable) %>% summarise(count = n())
   
 
-  final_socodes %>% filter(sql_injectable==1) %>% group_by(type) %>% summarize()
+  summary <- summary %>% mutate(percent = count/sum(count) * 100)
   
-  
+  summary %>% ggplot(aes(x= sql_injectable, y=percent, fill=sql_injectable)) + geom_col() +  scale_fill_brewer(palette = "Set3") + theme_update() + scale_color_brewer(palette = "Greys") + ggtitle("Percentages of the SQL Injectability of questions")
+
+```
+```{r, echo=FALSE, message=FALSE}
+
+#Of these people, how many think their code is secure? I am going to classify this as someone who as at least one of these things in their code
+
+secure <- final_socodes %>% filter(relevant==1)%>% mutate(SecurityScore = as.character(prepared + real_escape + bounded_user_input)) %>% group_by(type, sql_injectable, SecurityScore) %>% summarise(count = n()) %>% mutate(percentage = count/sum(count)*100)
 
 
+secure %>% ggplot(aes(x=type, y= percentage, fill=SecurityScore)) + geom_col(position="dodge") + scale_fill_brewer(palette = "Set3") + theme_update()
 
+```
+```{r, echo=FALSE, message=FALSE}
+
+#Of these people, how many are explicitly looking for security advice?
+
+
+final_socodes %>% filter(relevant==1 & type=='question') %>% group_by(sql_injectable, mentions_sqli) %>% summarize(count=n())
 
 
 
@@ -211,45 +225,4 @@ Of these people, how many answers and everything_elses offer SQL injectable code
 
 
 ```
-
-
-
-```{r, echo=FALSE, message=FALSE}
-
-
-# initial scripts I am probably not gonna use these anymore
-
-
- pages <- final_socodes %>% summarise(num_pages = n())
-  number_of_pages <- pages[1, 1]
- relevant = final_socodes %>% filter(relevant==1) %>% summarize(relevant_pages = n())
-  relevant
- num_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==1) %>% summarize(sqli_questions = n())
-  num_sqli_questions
-   num_sqli_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==1) %>% summarize(sqli_answers = n())
-  num_sqli_answers
-  num_sqli_answers <- final_socodes %>% filter(type=="everything_else" & sql_injectable==1) %>% summarize(sqli_everything = n())
-  num_sqli_answers
-  non_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==0) %>% summarize(non_sqli_questions = n())
-  non_sqli_questions
-  non_sqli_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0) %>% summarize(non_sqli_answers = n())
-  non_sqli_answers
-  non_sqli_everything <- final_socodes %>% filter(type=="everything_else" & sql_injectable==0) %>% summarize(non_sqli_everything_else = n())
-  non_sqli_everything
-  
-sql_injectable_question <- final_socodes %>% filter(type == "question" & sql_injectable=1)
-non_sql_injectable_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0)
-corrected_questions <- sql_injectable_question %>% inner_join(non_sql_injectable_answers, by="id")
-
-
-//Then you Count using the summarize function
-
-
-
-
-
-
-```
-
-
 
