@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 databaseName = 'stackoverflow'
 hostName = '127.0.0.1'
-password = 'Zila.768'
-userName = 'emuzulu'
+password = 'REDACTED'
+userName = 'REDACTED'
 
 ```
 Authentication
