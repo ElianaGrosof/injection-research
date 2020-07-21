@@ -1,8 +1,11 @@
 ---
-title: "SQL Injections, or StackOverflow Users: Who are they? What do they know about SQL injection? Do they know things? Let's find out."
-authors: "Evans Muzulu, Eliana Grosof, Sam Fertig"
+title: "SQL Injections, or StackOverflow Users: Who are they? What do they know about
+  SQL injection? Do they know things? Let's find out."
+authors: Evans Muzulu, Eliana Grosof, Sam Fertig
 date: "7/2/2020"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -29,8 +32,8 @@ library(ggplot2)
 db <- dbConnect(RMySQL::MySQL(), 
                 dbname = "stackoverflow",
                 host = "127.0.0.1",
-                user = "REDACTED",
-                password = "REDACTED")
+                user = "samfert",
+                password = "^Am,a>kie&7")
 
 final_socodes <- tbl(db,"final_socodes")
 
@@ -47,67 +50,7 @@ everything_else <- final_socodes %>% filter(type=="everything_else")
 
 ```
 
-Initial scripts
-```{r, echo=FALSE, message=FALSE}
-
-# Initial scripts
-
- pages <- final_socodes %>% summarise(num_pages = n())
-  number_of_pages <- pages[1, 1]
- relevant = final_socodes %>% filter(relevant==1) %>% summarize(relevant_pages = n())
-  relevant
- num_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==1) %>% summarize(sqli_questions = n())
-  num_sqli_questions
-   num_sqli_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==1) %>% summarize(sqli_answers = n())
-  num_sqli_answers
-  num_sqli_answers <- final_socodes %>% filter(type=="everything_else" & sql_injectable==1) %>% summarize(sqli_everything = n())
-  num_sqli_answers
-  non_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==0) %>% summarize(non_sqli_questions = n())
-  non_sqli_questions
-  non_sqli_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0) %>% summarize(non_sqli_answers = n())
-  non_sqli_answers
-  non_sqli_everything <- final_socodes %>% filter(type=="everything_else" & sql_injectable==0) %>% summarize(non_sqli_everything_else = n())
-  non_sqli_everything
-  
-sql_injectable_question <- final_socodes %>% filter(type == "question" & sql_injectable==1)
-non_sql_injectable_answers <- final_socodes %>% filter(type=="answer" & sql_injectable==0)
-corrected_questions <- sql_injectable_question %>% inner_join(non_sql_injectable_answers, by="id")
-
-# Then you Count using the summarize function
-
-```
-
 Question time!
-
-How many people who post SQL code--which includes user input and at least one SQL query (a relevant question)--post SQL injectable code?
-```{r}
-
-  final_socodes <- final_socodes %>% mutate(sql_injectable = as.character(sql_injectable))
-  
-    sql_percent <- function(dataset){
-        dataset <- dataset %>% mutate(sql_injectable = as.character(sql_injectable))
-        dataset <- dataset %>% filter(relevant==1) %>% group_by(type, sql_injectable) %>% summarize(count=n())
-        dataset <- dataset %>% mutate(percent = count/sum(count)*100)
-        return(dataset)
-    }
-    
-    question_percent <- sql_percent(questions)
-    answer_percent <- sql_percent(answers)
-    everything_else_percent <- sql_percent(everything_else)
-    
-    
-    q1 <-rbind(question_percent, answer_percent, everything_else_percent)
-
-    write.csv(q1, "Question1.csv")
-
-  q1_picture <-q1 %>% ggplot( aes(x=type, y=count, fill=sql_injectable)) + geom_col()  + xlab("Type") + ylab("Number of items")+ coord_flip()
-  
-  
-  #I am supposed to have percentages here
-  
-  q1_picture
-  
-```
 
 Of all SQL-injectable questions, how many have SQL-injectable answers?
 ```{r, echo=FALSE, message=FALSE}
@@ -134,14 +77,14 @@ slices <- c(si_zero, si_one)
 labels <- c('Non SQL-injectable', 'SQL-injectable')
 percent <- round(slices/sum(slices)*100)
 labels <- paste(labels, paste(percent,'%', sep=""))
-pie(slices, labels=labels, col = c('green', 'red'), main='Answers to SQL-injectable Questions')
+pie(slices, labels=labels, col = c('cyan', 'orange'), main='Answers to SQL-injectable Questions')
 
 ```
 
 Comparison of questions 1-5 in this document: https://docs.google.com/document/d/11deLxXumfRyBlbk5nSV_ili5mYtZ3y3Of1nxwhDlt_U/edit
 (Just for the question)
 UpSetR documentation: https://rdrr.io/cran/UpSetR/man/upset.html 
-BULK SECURITY CLASSIFICATION for SQL-INJECTABLE QUESTIONS
+BULK SECURITY CLASSIFICATION for QUESTIONS
 ```{r, echo=FALSE, message=FALSE}
 query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared FROM final_socodes WHERE type='question';"
 query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
@@ -154,7 +97,7 @@ upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color =
 
 ```
 
-BULK SECURITY CLASSIFICATION for SQL-INJECTABLE ANSWERS
+BULK SECURITY CLASSIFICATION for ANSWERS
 ```{r, echo=FALSE, message=FALSE}
 query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared FROM final_socodes WHERE type='answer';"
 query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
@@ -167,7 +110,7 @@ upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color =
 
 ```
 
-BULK SECURITY CLASSIFICATION for SQL-INJECTABLE EVERYTHING_ELSEs
+BULK SECURITY CLASSIFICATION for EVERYTHING_ELSE
 ```{r, echo=FALSE, message=FALSE}
 query_upset <- "SELECT sql_injectable, real_escape, bounded_user_input, prepared FROM final_socodes WHERE type='everything_else';"
 query_upset <- db %>% dbGetQuery(query_upset) %>% collect();
@@ -180,92 +123,60 @@ upset(query_upset, order.by="freq", main.bar.color = "#995ee1", sets.bar.color =
 
 ```
 
-How often do people mention SQL injection?
-```{r, echo=FALSE, message=FALSE}
-ms_table <- final_socodes %>% filter(relevant=="1")
-ms_table <- subset(ms_table, select=c("type", "mentions_sqli"))
-
-    ms_percent <-function(dataset){
-        dataset <- dataset %>% mutate(mention_sqli = as.character(mentions_sqli))
-        dataset <- dataset %>% filter(relevant==1) %>% group_by(type, mentions_sqli) %>% summarize(count=n())
-        dataset <- dataset %>% mutate(percent = count/sum(count)*100)
-        return(dataset)
-    }
-    
-    q_percent <- ms_percent(questions)
-    a_percent <- ms_percent(answers)
-    ee_percent <- ms_percent(everything_else)
-    
-    
-    ms_table <-rbind(q_percent, a_percent, ee_percent)
-
-    ms_plot <- ms_table %>% ggplot( aes(x=type, y=count, fill=mentions_sqli)) + geom_bar(position="stack", stat="identity") + xlab("Type") + ylab("Number of items")
-    ms_plot + theme_classic() + theme(legend.position = "none")
-    
-    #will make it nicer later
-
-```
-
-How many think their code is secure?
-```{r, echo =FALSE, message=FALSE}
-
-# We are defining thinking that your code is secure as having at least one of these things: real_escape, bounded_user_input, prepared_statements
-
-  
-  security_codes <- final_socodes %>% filter(relevant == 1) %>% group_by(type) %>% summarise( use_re = sum(real_escape), use_bui= sum(bounded_user_input), use_prepared = sum(prepared), total=n())
-
-security_codes <-security_codes %>% mutate(percent_re = use_re/total*100, percent_bui = use_bui/total*100, percent_prepared = use_prepared/total*100)
-
-
-bui <-security_codes %>% ggplot(aes(x= type, y= percent_bui))+ geom_col()  + theme_classic()
-
-bui
-
-re <- security_codes %>% ggplot(aes(x= type, y=percent_re)) + geom_col() + theme_classic()
-
-re
-
-
-prep <- security_codes %>% ggplot(aes(x=type, y=percent_prepared)) + geom_col() + theme_classic()
-
-
-prep
-
-```
-
-# Of people who post SQL injectable questions, how many think their code is secure? 
-# Side Q: is this a good measure of false security?
+Of people who post SQL-injectable questions, how many think their code is secure? 
+Side Q: is this a good measure of false security?
 ```{r}
-num_false_security <- final_socodes %>% filter(sql_injectable==1 & type=='question' & (real_escape==1 || bounded_user_input==1)) %>% summarize(num_false_security = n())
+num_false_security <- final_socodes %>% filter(sql_injectable==1 & type=='question' & (prepared==1 || real_escape==1 || bounded_user_input==1)) %>% summarize(num_false_security = n())
   num_false_security
 ```
 
+Of people who post SQL injectable code (question, answer, or everything else), how many think their code is secure? 
+```{r,echo=FALSE,message=FALSE}
+
+false_promises<-final_socodes %>% filter(sql_injectable==1 & code_snippet==1 & (prepared==1 ||real_escape==1 || bounded_user_input==1)) %>% group_by(type) %>% summarize(use_re=sum(real_escape), use_bui=sum(bounded_user_input), use_prepared=sum(prepared), total=n())
+
+false_promises<-false_promises %>% mutate(percent_re=use_re/total*100, percent_bui=use_bui/total*100, percent_prepared=use_prepared/total*100)
+
+types <- c("question", "answer", "everything_else")
+
+bui_mistaken<-false_promises %>% ggplot(aes(x=reorder(type, -percent_bui), y=percent_bui)) + geom_col(fill = "#FFDB6D", color = "#C4961A",width = 0.7) + theme_clean() + scale_x_discrete(limits = types)
+
+re_mistaken<-false_promises %>% ggplot(aes(x=reorder(type, -percent_re), y=percent_re)) + geom_col(fill = "#FFDB6D", color = "#C4961A",width = 0.7) + theme_clean() + scale_x_discrete(limits = types)
+
+prep_mistaken<-false_promises %>% ggplot(aes(x=reorder(type, -percent_prepared), y=percent_prepared)) + geom_col(fill = "#FFDB6D", color = "#C4961A",width = 0.7) + theme_clean() + scale_x_discrete(limits = types)
+
+print(bui_mistaken + labs(y="% using bui", x="type", title="SQL Injectable Code using Bounded User Input"))
+print(re_mistaken + labs(y="% using re", x="type", title="SQL Injectable Code using real_escape_string()"))
+print(prep_mistaken + labs(y="% using prep", x="type", title="SQL Injectable Code using Prepared Statments"))
+
+```
+
 # Of these people, how many are explicitly looking for security advice?
-```{r}
+```{r,echo=FALSE,message=FALSE}
 sec_seekers <- final_socodes %>% filter(sql_injectable==1 & type=='question' & mentions_sqli==1)
   sec_seekers
 ```
-# Take a gander at each id.
-# 29007436 --> mentions_sqli in code comment about how they use real_escape() to stop SQL_injection
-# 29024361 --> mentions_sqli in code comment about how they use real_escape() (and other bui) to stop SQL_injection
-# 9476097  --> asks audience to ignore SQL_injection issue, just wants advice on how to get their code to run
-# 4587339  --> mentions_sqli in code comment about how they use real_escape() (and other bui) to stop SQL_injection
-# 21971127 --> posted in an update to not use their code because they now realize it is vulnerable to SQL_injection
-# 16019976 --> mentions_sqli in code comment about how they use real_escape() to stop SQL_injection
-# 8267614  --> explicitly asks how to stop SQL injections even though they're using real_escape() and other bui
+Take a gander at each id.
+29007436 --> mentions_sqli in code comment about how they use real_escape() to stop SQL_injection
+29024361 --> mentions_sqli in code comment about how they use real_escape() (and other bui) to stop SQL_injection
+9476097  --> asks audience to ignore SQL_injection issue, just wants advice on how to get their code to run
+4587339  --> mentions_sqli in code comment about how they use real_escape() (and other bui) to stop SQL_injection
+21971127 --> posted in an update to not use their code because they now realize it is vulnerable to SQL_injection
+16019976 --> mentions_sqli in code comment about how they use real_escape() to stop SQL_injection
+8267614  --> explicitly asks how to stop SQL injections even though they're using real_escape() and other bui
 
-# Does this change the quality of the answer? Do you get good security advice on StackOverflow only when you ask for it?
-```{r}
+Does this change the quality of the answer? Do you get good security advice on StackOverflow only when you ask for it?
+```{r,echo=FALSE,message=FALSE}
 sec_seekers_answers <- final_socodes %>% filter(type=='answer' & (id==29007436 || id==29024361 || id==9476097 || id==4587339 || id==21971127 || id==16019976 || id==8267614))
   sec_seekers_answers
 ```
-# Only 5 of those questions have answer. Let's take a gander.
-# 29007436 --> No relevant security advice in the answer or in any comments.
-# 29024361 --> No relevant security advice in the answer or in any comments. 
-# 21971127 --> No relevant security advice in the answer or in any comments.
-# 9476097  --> No relevant security advice in the answer or in any comments.
-# 8267614  --> Relevant security advice in the answer. Doesn't suggest using prepared statements, but answers the question posed pretty thoroughly.
-Above information (manually) summarized in .csv file in GitHub repo.
+Only 5 of those questions have answers. Let's take a gander.
+29007436 --> No relevant security advice in the answer or in any comments.
+29024361 --> No relevant security advice in the answer or in any comments. 
+21971127 --> No relevant security advice in the answer or in any comments.
+9476097  --> No relevant security advice in the answer or in any comments.
+8267614  --> Relevant security advice in the answer. Doesn't suggest using prepared statements, but answers the question posed pretty thoroughly.
+Above information (manually) summarized in .csv file in GitHub repo. Title = 'msqli questions.csv'
 
 Of all SQL injectable questions, how many answers offer security advice?
 Define: An answer counts as offering security advice if it raises the security level of the original code. Consult Security Questions doc for levels.
@@ -316,7 +227,7 @@ answersec_percs=c(7.07,0.86,1.28,0.00)
 df<-data.frame(security_level, answersec_percs)
 head(df)
 blarg <- df %>% ggplot(aes(x=security_level, y=answersec_percs)) + geom_col(fill = "#FFDB6D", color = "#C4961A") + theme_classic()
-print(blarg + labs(y="% of Questions with an Answer Offering Security Advice", x="Questions' Security Level", title="Security Advice Received in Answer by Security Level"))
+print(blarg + labs(y="%", x="security level", title="Percent of SQLI Questions with an Answer Offering Security Advice,\n by Question's Security Level"))
 
 ```
 
@@ -369,54 +280,54 @@ commentsec_percs<-c(4.04,6.03,0.00,0.00)
 df<-data.frame(security_level, commentsec_percs)
 head(df)
 blarg <- df %>% ggplot(aes(x=security_level, y=commentsec_percs)) + geom_col(fill = "#FFDB6D", color = "#C4961A") + theme_classic()
-print(blarg + labs(y="% of Questions with an Everything Else Offering Security Advice", x="Questions' Security Level", title="Security Advice Received in Everything Else (by Security Level)"))
+print(blarg + labs(y="%", x="security level", title="Percent of SQLI Questions with an EE Offering Security Advice,\n by Question's Security Level"))
 
 ```
 
 Answers (at least insight) to the following questions can all be found above:
 
-  1. How many people who post SQL code which includes user input and at least one SQL query (a            relevant question) post SQL injectable code?
+  1. How many people who post SQL code which includes user input and at least one SQL query (a relevant question) post SQL injectable code?
   
   2. Of these people, how many think their code is secure?
   
   3. Of these people, how many are explicitly looking for security advice?
   
-  4. Does this change the quality of the answer? Do you get good security advice on StackOverflow         only when you ask for it?
+  4. Does this change the quality of the answer? Do you get good security advice on StackOverflow only when you ask for it?
   
   5. Of these people, how many answers and everything_elses offer security advice?
   
-  6. How many offer good security advice? (as determined by the level of specificity denoted            above)
+  6. How many offer good security advice? (as determined by the level of specificity denoted above)
   
-  7. How many answers/comments offering security advice clearly state what they’re suggesting and         why. How many just include it in their overall answer to the question? (e.g. posting a            code snippet that is not SQL-injectable, but not explicitly pointing that benefit out)
+  7. How many answers/comments offering security advice clearly state what they’re suggesting and why. How many just include it in their overall answer to the question? (e.g. posting a code snippet that is not SQL-injectable, but not explicitly pointing that benefit out)
 
 
 Still needing answers:
 
-  8. How many people who post SQL code including user input and at least one SQL query post             non-SQL injectable code?
+  8. How many people who post SQL code including user input and at least one SQL query post non-SQL injectable code?
 
   9. Of these people, how many think their code is secure?
 
   10. Of these people, how many are explicitly looking for security advice?
 
-  11. Of these people, how many answers and everything_elses offer suggestions that render the            original code SQL injectable?
+  11. Of these people, how many answers and everything_elses offer suggestions that render the original code SQL injectable?
   
-  
-How many people who post SQL code including user input and at least one SQL query post             non-SQL injectable code?
-```{r}
+
+How many people who post SQL code including user input and at least one SQL query post non-SQL injectable code?
+```{r, echo=FALSE, message=FALSE}
 non_sqli_questions <- final_socodes %>% filter(type=="question" & sql_injectable==0) %>% summarize(non_sqli_questions = n())
 non_sqli_questions
 ```
 
 Of these people, how many think their code is secure?
 Of these people, how many are explicitly looking for security advice?
-```{r}
+```{r, echo=FALSE, message=FALSE}
 secure_and_rightly_so <- final_socodes %>% filter(type=="question" & sql_injectable==0 & mentions_sqli==1) %>% summarize(non_sqli_questions = n())
 secure_and_rightly_so
 ```
-# Presumably, because there are no non SQL-injectable questions that mention injectability, none of these people are asking for security advice. Perhaps this means that all of them know their code is secure.
+Presumably, because there are no non SQL-injectable questions that mention injection, none of these people are asking for security advice. Perhaps this means that all of them know their code is secure.
 
-Of these people, how many answers and everything_elses offer suggestions that render the            original code SQL injectable?
-```{r}
+Of these people, how many answers and everything_elses offer suggestions that render the original code SQL injectable?
+```{r, echo=FALSE, message=FALSE}
 
 query_for_stupid <- "SELECT x.id FROM final_socodes x INNER JOIN final_socodes y ON y.id = x.id WHERE x.type='question' AND x.sql_injectable=0 AND ( (y.type='answer' OR y.type='everything_else') AND y.sql_injectable=1)"
 
@@ -424,4 +335,466 @@ idiot_suggestions <- db %>% dbGetQuery(query_for_stupid) %>% collect()
 idiot_suggestions
 
 ```
-# Takeaway: there is not a single non SQL injectable question with a SQL injectable answer or comment.
+# Takeaway: there is not a single non-SQL-injectable question with a SQL injectable answer or comment.
+
+(!) Data sorted by year
+
+All posts download, the year they are from
+```{sql connection=db, output.var=postpost}
+SELECT
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+    WHEN CreationDate LIKE '2017%' THEN '2017'
+    WHEN CreationDate LIKE '2018%' THEN '2018'
+  END AS 'Year'
+, COUNT(*) AS 'QuestionCount'
+FROM posts
+GROUP BY 
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+    WHEN CreationDate LIKE '2017%' THEN '2017'
+    WHEN CreationDate LIKE '2018%' THEN '2018'
+  END
+
+```
+
+Line/dot plot -- posts by year
+```{r}
+postpost
+library(ggplot2)
+ggplot(postpost, aes(x=Year,y=QuestionCount)) + 
+  geom_line(aes(group=1), colour="#FF9933") +
+  geom_point(size=1, colour="#6699FF") +
+  xlab("Year") +
+  ylab("Question Count") +
+  ggtitle("Pages Downloaded by Year Posted")
+```
+
+
+All sql-tagged pages available, the year they are from
+```{sql connection=db, output.var=allpage_distribution}
+SELECT
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+    WHEN CreationDate LIKE '2017%' THEN '2017'
+    WHEN CreationDate LIKE '2018%' THEN '2018'
+  END AS 'Year'
+, COUNT(*) AS 'QuestionCount'
+FROM sql_posts
+GROUP BY 
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+    WHEN CreationDate LIKE '2017%' THEN '2017'
+    WHEN CreationDate LIKE '2018%' THEN '2018'
+  END
+
+```
+
+Line/dot plot -- pages by year
+```{r}
+allpage_distribution
+library(ggplot2)
+ggplot(allpage_distribution, aes(x=Year,y=QuestionCount)) + 
+  geom_line(aes(group=1), colour="#FF9933") +
+  geom_point(size=1, colour="#6699FF") +
+  xlab("Year") +
+  ylab("Question Count") +
+  ggtitle("Pages Downloaded by Year Posted")
+```
+
+
+The pages we coded, the year they are from
+```{sql connection=db, output.var=annual_query}
+SELECT
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+  END AS 'Year'
+, COUNT(*) AS 'QuestionCount'
+FROM sql_posts x INNER JOIN final_socodes y ON y.id=x.id WHERE type='question'
+GROUP BY 
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+  END
+
+```
+
+Line/dot plot -- coded pages by year
+```{r}
+annual_query
+library(ggplot2)
+ggplot(annual_query, aes(x=Year,y=QuestionCount)) + 
+  geom_line(aes(group=1), colour="#FF9933") +
+  geom_point(size=1, colour="#6699FF") +
+  xlab("Year") +
+  ylab("Question Count") +
+  ggtitle("Pages Coded by Year Posted")
+```
+
+The SQL-injectable questions we coded, the year they are from
+```{sql connection=db, output.var=sqliQ_peryear}
+SELECT
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+  END AS 'Year'
+, COUNT(*) AS 'QuestionCount'
+FROM sql_posts x INNER JOIN final_socodes y ON y.id=x.id WHERE y.type='question' AND y.sql_injectable=1
+GROUP BY 
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+  END
+
+```
+
+Line/dot plot -- SQLI questions by year
+```{r}
+sqliQ_peryear
+library(ggplot2)
+ggplot(sqliQ_peryear, aes(x=Year,y=QuestionCount)) + 
+  geom_line(aes(group=1), colour="#FF9933") +
+  geom_point(size=1, colour="#6699FF") +
+  xlab("Year") +
+  ylab("Question Count") +
+  ggtitle("SQL Injectable Questions by Year Posted")
+```
+
+How many SQL injectable questions were given any sort of security advice (same criteria as in previous monster question) each year?
+```{sql connection=db, output.var=advice_peryear}
+SELECT
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+  END AS 'Year'
+  , COUNT(*) AS 'QuestionCount'
+FROM sql_posts x INNER JOIN final_socodes y ON y.id=x.id INNER JOIN final_socodes z WHERE y.id=z.id AND y.type='question' AND y.sql_injectable=1 AND 
+((y.prepared=0 AND y.real_escape=0 AND y.bounded_user_input=0 AND z.type!='question' AND (z.prepared=1 OR z.real_escape=1 OR z.bounded_user_input=1)) 
+OR 
+(y.prepared=0 AND y.real_escape=0 AND y.bounded_user_input=1 AND z.type!='question' AND (z.prepared=1 OR z.real_escape=1)) OR (y.prepared=0 AND y.real_escape=0 AND y.bounded_user_input=1 AND z.type!='question' AND (z.prepared=1 OR z.real_escape=1)) 
+OR 
+(y.prepared=0 AND y.real_escape=1 AND z.type!='question' AND z.prepared=1) OR (y.prepared=1 AND z.type!='question' AND z.sql_injectable=1))
+GROUP BY 
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+  END
+
+```
+
+```{r,echo=FALSE,message=FALSE}
+advice_peryear
+library(ggplot2)
+ggplot(advice_peryear, aes(x=Year,y=QuestionCount)) + 
+  geom_line(aes(group=1), colour="#000099") +
+  geom_point(size=1, colour="#CC0000") +
+  xlab("Year") +
+  ylab("Question Count") +
+  ggtitle("Security Advice (any) by Year Posted")
+```
+
+How many SQL injectable questions were given good security advice (prepared statements) each year?
+```{sql connection=db, output.var=prepadvice_peryear}
+SELECT
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+  END AS 'Year'
+  , COUNT(*) AS 'QuestionCount'
+FROM sql_posts x INNER JOIN final_socodes y ON y.id=x.id INNER JOIN final_socodes z WHERE y.id=z.id AND (y.type='question' AND y.sql_injectable=1) AND ((z.type='answer' OR z.type='everything_else') AND z.sql_injectable=0)
+GROUP BY 
+  CASE
+    WHEN CreationDate LIKE '2008%' THEN '2008'
+    WHEN CreationDate LIKE '2009%' THEN '2009'
+    WHEN CreationDate LIKE '2010%' THEN '2010'
+    WHEN CreationDate LIKE '2011%' THEN '2011'
+    WHEN CreationDate LIKE '2012%' THEN '2012'
+    WHEN CreationDate LIKE '2013%' THEN '2013'
+    WHEN CreationDate LIKE '2014%' THEN '2014'
+    WHEN CreationDate LIKE '2015%' THEN '2015'
+    WHEN CreationDate LIKE '2016%' THEN '2016'
+  END
+
+```
+
+```{r,echo=FALSE,message=FALSE}
+prepadvice_peryear
+library(ggplot2)
+ggplot(prepadvice_peryear, aes(x=Year,y=QuestionCount)) + 
+  geom_line(aes(group=1), colour="#000099") +
+  geom_point(size=1, colour="#CC0000") +
+  xlab("Year") +
+  ylab("Question Count") +
+  ggtitle("Security Advice (good) by Year Posted")
+```
+
+All lines on same graph
+```{r,echo=FALSE,message=FALSE}
+
+all4one<-allpage_distribution
+all4one<-all4one %>% rename(`Questions Downloaded`=QuestionCount)
+
+all4one<-merge(all4one, annual_query[, c("Year","QuestionCount")],by="Year",all.x=TRUE)
+
+#all4one<-annual_query
+all4one<-all4one %>% rename(`Questions Coded`=QuestionCount)
+
+all4one<-merge(all4one, sqliQ_peryear[, c("Year","QuestionCount")],by="Year",all.x=TRUE)
+all4one<-all4one %>% rename(`SQL Injectable Questions`=QuestionCount)
+
+all4one<-merge(all4one,advice_peryear[, c("Year","QuestionCount")],by="Year", all.x=TRUE)
+all4one<-all4one %>% rename(`Security Advice`=QuestionCount)
+
+all4one<-merge(all4one,prepadvice_peryear[, c("Year","QuestionCount")],by="Year", all.x=TRUE)
+all4one<-all4one %>% rename(`Good Security Advice`=QuestionCount)
+
+colnames(all4one) = c("year", "all_questions", "coded_questions", "sqli_questions", "security_any", "security_good")
+all4one[is.na(all4one)] <- 0
+all4one
+
+library(ggplot2)
+theme_set(theme_minimal())
+
+# Data preparation
+library("tidyverse")
+df <- all4one %>%
+  select(`year`,`coded_questions`,`sqli_questions`,`security_any`,`security_good`) %>%
+  gather(key = "variable", value = "count", -year)
+head(df)
+
+#reorder legend (I don't like the default)
+df$variable <- factor(df$variable, levels = c("coded_questions","sqli_questions", "security_any", "security_good"))
+
+library(hrbrthemes)
+library(viridis)
+library(ggsci)
+
+# Visualization
+ggplot(df, aes(x = year, y = count)) + 
+  geom_line(aes(group=variable,color=variable, linetype=variable)) +
+  scale_fill_jco() +
+  theme_hc() +
+  theme(legend.title=element_blank(),legend.position="right")
+
+  #labels=c("Questions", "SQL injectable questions", "Security advice offered (any)", "Security advice offered (good)")
+
+# Dark theme
+# ggplot(df, aes(x = year, y = count)) + 
+#   geom_line(aes(group=variable,color = variable, linetype = variable)) +
+#   theme_dark() +   
+#   scale_color_tron()+
+#   scale_fill_tron()+
+#   theme_dark() +
+#   theme(
+#     panel.background = element_rect(fill = "#2D2D2D"),
+#     legend.key = element_rect(fill = "#2D2D2D")   
+#     )
+
+```
+
+(!) Linear regression models 
+Quick documentation:
+To specify predictor variables:         model <- lm(y ~ variable + variable + ... + variable, data = <table>)
+To use all predictors in the data set:  model <- lm(y ~., data = <table>)
+To use all predictors except one:       model <- lm(y ~. -variable, data = <table>)
+
+Outcome variable: coded_questions
+
+
+Outcome variable: sqli_questions
+```{r,echo=FALSE,message=FALSE}
+
+#outcome variable: sqli_questions. predictor variables: all.
+sqli_v_all <- lm(`sqli_questions`~coded_questions+security_any+security_good,data=all4one) 
+
+#estimate beta coefficients and associated t-statistic p-values. AKA, what's significant
+summary(sqli_v_all)$coefficient 
+# Result: only all_questions is significant. 
+
+#update model.
+#outcome variable: sqli_questions. predictor variable: all_questions.
+sqli_model <- lm(`sqli_questions`~coded_questions,data=all4one) 
+summary(sqli_model)
+
+# p-value of F-statistic: 6.02e-07 --> highly significant.
+
+# With a 1,000 all_questions increase, holding all other predictors constant, we can expect an increase of 0.917*1000 = 917 sqli_questions, on average.
+
+# Final model equation --> sqli_questions = -0.647 + 0.917*all_questions
+
+#get confidence interval
+confint(sqli_model) #confidence interval --> 97.5%
+
+#assess model accuracy
+sqli_adjR2 <- 0.9855 #adjusted R-squared: 0.9855
+# “98.5% of the variance in the measure of sqli_questions can be predicted by all_questions"
+
+sqli_RSE <- sigma(sqli_model)/mean(all4one$sqli_questions) 
+# sqli_RSE: 0.0987529 --> 9% error rate
+
+# CONCLUSION
+# sqli_questions v. all_questions: highly significant.
+
+```
+
+Outcome variable: security_any
+```{r,echo=FALSE,message=FALSE}
+
+#outcome variable: security_any. predictor variables: all.
+sqli_v_all <- lm(`sqli_questions`~coded_questions+security_any+security_good,data=all4one) 
+
+#estimate beta coefficients and associated t-statistic p-values. AKA, what's significant
+summary(sqli_v_all)$coefficient 
+# Result: only sqli_questions is even close to significant. 
+
+#update model.
+#outcome variable: security_any. predictor variable: sqli_questions.
+anysec_model <- lm(`security_any`~sqli_questions,data=all4one) 
+summary(anysec_model)
+
+# p-value of F-statistic: 6.02e-07 --> highly significant.
+
+# With a 1,000 `sqli_questions` increase, holding all other predictors constant, we can expect an increase of 0.284*1000 = 284 security_any, on average.
+
+
+# Final model equation --> security_any = security_any = 0.049 + 0.284*all_questions
+
+#get confidence interval
+confint(anysec_model) #confidence interval --> 97.5%
+
+#assess model accuracy
+anysec_adjR2 <- 0.7433 #adjusted R-squared: 0.7433
+# “74.3% of the variance in the measure of security_any can be predicted by sqli_questions"
+
+anysec_RSE <- sigma(sqli_model)/mean(all4one$sqli_questions) 
+# anysec_RSE: 0.466729 --> 46% error rate
+
+# CONCLUSION
+# anysec_questions v. sqli_questions: significant, but massive error rate.
+
+```
+
+security_good
+```{r,echo=FALSE,message=FALSE}
+
+goodsec_v_all <- lm(`security_good`~all_questions+sqli_questions+security_any,data=all4one) #outcome variable: security_good. predictor variables: all.
+summary(goodsec_v_all)$coefficient #estimate beta coefficients and associated t-statistic p-values. AKA, what's significant
+
+# 
+# # Result: sqli_questions is the most significant. Update model.
+# anysec_model <- lm(`security_any`~sqli_questions,data=all4one) #outcome: security_any. predictor: sqli_questions.
+# # summary(anysec_model)$coefficients
+# # p-value of F-statistic:  --> highly significant.
+# 
+# summary(anysec_model) #estimate = 
+# 
+# 
+# # Final model equation --> 
+# #confint(anysec_model) #confidence interval --> 97.5%
+# 
+# #Assess model accuracy
+# #anysec_adjR2 <- 0.7433 #adjusted R-squared: 0.7433
+# #“74.3% of the variance in the measure of security_any can be predicted by sqli_questions"
+# anysec_RSE <- sigma(anysec_model)/mean(all4one$security_any) #sqli_RSE: 0.466729 --> 46% error rate
+# anysec_RSE
+# security_any v. sqli_questions: highly significant.
+
+```
+
+(!) Voting stuff
+
+```{r,echo=FALSE,message=FALSE}
+
+votes <- read.csv(file = 'pdVotes.csv')
+votes<-votes %>% rename(`id`=X)
+votes
+big_table <- questions
+big_table
+big_table<-merge(big_table,votes[, c("id","Qvote","Avote")],by="id", all.x=TRUE)
+big_table
+
+
+```
+
